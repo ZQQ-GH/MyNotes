@@ -1,0 +1,73 @@
+
+--查表索引
+select tbl.name as tbl_name, idx.name as idx_name, idx.type_desc, is_primary_key, idx.index_id, idx.object_id
+,(
+select c.name + case when icol.is_descending_key = 1 then ' desc' else '' end + ' , '
+from sys.index_columns icol
+inner join sys.columns c on c.column_id = icol.column_id
+  and c.object_id = icol.object_id
+where icol.index_id = idx.index_id
+  and icol.object_id = idx.object_id
+for xml path ('') ) as idx_cols
+
+from sys.tables tbl  
+left join sys.indexes idx on tbl.object_id = idx.object_id
+where idx.index_id <>0
+  and tbl.name in 
+  (
+  'T205_stock_adjust',
+'T205_stock_input_child_active',
+'T205_stock_input_consign_extend'
+
+  )
+order by tbl.name, idx.name
+
+
+--删除索引
+psysdropindex 'T207_consign_bill_detail', 'IX_input_date'
+
+--新建索引
+psysalterindex 'T207_consign_bill_detail', 'IX_input_date_id', 1, 'input_date', 'id'
+
+---整理索引
+DBCC DBREINDEX('T205_stock_input_detail','',90)
+
+--批量整理索引
+Declare @SysIndexTable table(table_name varchar(100),index_name varchar(100),id int identity(1,1))
+Delete From @SysIndexTable 
+
+Insert @SysIndexTable(table_name) 
+Select so.name
+From sysobjects so
+Where so.xtype='U'  
+  and so.name in 
+  (
+
+'T207_consign_bill_detail',
+'T207_consign_bill_master',
+'T207_consign_bill_receiver',
+
+
+'T209_move_notify_detail',
+'T209_move_notify_master',
+'T209_move_notify_receiver'
+  )
+
+Declare @i as int,@Max as int
+Declare @strTableName as varchar(100),@strIndexName as varchar(100)
+Declare @strSQL varchar(1000)
+
+Select @i=1,@Max=Max(id)
+From @SysIndexTable 
+
+While @i<=@Max
+Begin
+  Select @strTableName=table_name
+  From @SysIndexTable
+  Where id=@i 
+
+  Select @strSQL='DBCC DBREINDEX('+@strTableName+','''',90)'
+  Print @strSQL
+  exec(@strSQL)
+  Select @i=@i+1
+End

@@ -1,0 +1,212 @@
+//上移
+		void Mi_UpClick(object sender, EventArgs e)
+		{
+			OrganInfo info = (OrganInfo)tv_Type.SelectedNode.Tag;
+			TreeNode l_node = tv_Type.SelectedNode as TreeNode;
+			if(tv_Type.Nodes[0] == l_node)
+			{
+				MsgBox.Show(Const.ct_MsgRootCanNotMove);
+				return;
+			}
+			TreeNode l_ParentNode = l_node.Parent as TreeNode;
+			OrganInfo infoParent = (OrganInfo)l_ParentNode.Tag;
+			int l_intNodeIndex = tv_Type.SelectedNode.Index;
+			if(l_node.Parent.FirstNode == l_node)
+			{
+				MsgBox.Show(Const.ct_MsgFirstNodeCanNotMoveUp);
+				return ;
+			}
+			string l_strOrganLevelA = info.type_level;
+			string l_strOrganLevelB = ((OrganInfo)l_node.Parent.Nodes[l_intNodeIndex-1].Tag).type_level;
+			if(Controller.MoveSelectNode(l_strOrganLevelA,l_strOrganLevelB))
+			{
+				Controller.SetParentNode(l_ParentNode,infoParent.type_level);
+			}
+		}
+		
+		//下移
+		void Mi_DownClick(object sender, EventArgs e)
+		{
+			OrganInfo info = (OrganInfo)tv_Type.SelectedNode.Tag;
+			TreeNode l_node = tv_Type.SelectedNode as TreeNode;
+			if(tv_Type.Nodes[0] == l_node)
+			{
+				MsgBox.Show(Const.ct_MsgRootCanNotMove);
+				return;
+			}
+			TreeNode l_ParentNode = l_node.Parent as TreeNode;
+			OrganInfo infoParent = (OrganInfo)l_ParentNode.Tag;
+			int l_intNodeIndex = tv_Type.SelectedNode.Index;
+			if(l_node.Parent.LastNode == l_node)
+			{
+				MsgBox.Show(Const.ct_MsgLastNodeCanNotMoveDown);
+				return ;
+			}
+			string l_strOrganLevelA = info.type_level;
+			string l_strOrganLevelB =((OrganInfo)l_node.Parent.Nodes[l_intNodeIndex+1].Tag).type_level;
+			if(Controller.MoveSelectNode(l_strOrganLevelA,l_strOrganLevelB))
+			{
+				Controller.SetParentNode(l_ParentNode,infoParent.type_level);
+			}
+		}	
+
+
+	// 树节点的结构
+	public struct OrganInfo
+	{
+	    public string type_name_cn;
+	    public string type_no;
+	    public string type_level;
+	    public string type_kind;
+	    public bool RootTag;
+	}
+
+
+表结构
+type_kind	      type_level	type_no	   id	     shortkey	type_name_cn	type_name_en	end_tag	         select_tag
+ct_assist_material	001	           5	   1123	                 设备配件		            F                	F
+ 
+#region 加载树结构
+		//获取根节点名称
+		public void FetchTreeData()
+		{
+			string l_strSelectProductType = Const.ct_strFetchWordTable + " and  word_no=" + m_strSimpleType.QuotedStr();
+			m_FetchDataList.InitSQL(DatabaseName.basedb,l_strSelectProductType,false);
+			m_FetchDataList.Fetch();
+			cds_WordTable.SetData(m_FetchDataList.Data.Tables[0]);
+			cds_WordTable.Post();
+		}
+		
+		public DataTable FetchChildNodeData(string a_strLevel)
+		{
+			string l_strSql = "";
+			l_strSql=Const.ct_strFetchTypeStruct
+				+"  and type_kind =" +m_strTypeKind.QuotedStr()
+				+ " and type_level like"+ a_strLevel.QuotedStr();
+			m_FetchDataList.InitSQL(DatabaseName.basedb,l_strSql,false);
+			m_FetchDataList.FixOrderBy = Const.ct_FixOrderBy;
+			m_FetchDataList.Fetch();
+			return m_FetchDataList.Data.Tables[0];
+		}
+		
+		//构建根节点
+		public void BindTreeView(System.Windows.Forms.TreeView Sender)
+		{
+			if(cds_WordTable.RowCount == 0)
+			{
+				return;
+			}
+			cds_WordTable.Last();
+			Sender.Nodes.Clear();
+			TreeNode tvParent=new TreeNode();
+			OrganInfo info = new OrganInfo();
+			info.type_name_cn = cds_WordTable.word_cn;
+			info.type_no = cds_WordTable.word_no;
+			info.type_level = "";
+			info.type_kind = m_strTypeKind;
+			tvParent.Text = info.type_name_cn;
+			tvParent.Tag= info;
+			tvParent.ImageIndex=0;
+			tvParent.SelectedImageIndex =0;
+			Sender.Nodes.Add(tvParent);
+			FetchChildNodeData("___");
+			DataTable l_tb = FetchChildNodeData("___");
+			BindChildNodes(tvParent,l_tb);
+			tvParent.Expand();
+		}
+		
+		private void BindChildNodes(TreeNode a_tnParentNodes,DataTable a_tbNode)
+		{
+			foreach(DataRow dr in a_tbNode.Rows)
+			{
+				OrganInfo info = new OrganInfo();
+				info.type_name_cn = dr["type_name_cn"].ToString();
+				info.type_no = dr["type_no"].ToString();
+				info.type_level = dr["type_level"].ToString();
+				info.type_kind = dr["type_kind"].ToString();
+				
+				TreeNode tvChildrenNodes=new TreeNode();
+				tvChildrenNodes.Tag = info;
+				tvChildrenNodes.Text=dr["type_name_cn"].ToString();
+				tvChildrenNodes.ImageIndex=1;
+				tvChildrenNodes.SelectedImageIndex=1;
+				a_tnParentNodes.Nodes.Add(tvChildrenNodes);
+				string l_strLevel=dr["type_level"].ToString()+".___";
+				DataTable l_tb = FetchChildNodeData(l_strLevel);;
+				BindChildNodes(tvChildrenNodes,l_tb);
+			}
+		}
+		#endregion
+		
+		#region 树节点移动
+		public bool MoveSelectNode(string a_strlevelA,string a_strLevelB)
+		{
+			DataTable l_tbDelete = new DataTable();
+			string l_strOrganLevelA = a_strlevelA;
+			string l_strOrganLevelB = a_strLevelB;
+			string l_strSql = Const.ct_strFetchTypeStruct +
+				" and (type_level like "+(l_strOrganLevelA+"%").QuotedStr()+" or type_level  like "+(l_strOrganLevelB+"%").QuotedStr()+")";
+			WBF.Core.FetchData l_fetch = new WBF.Core.FetchData();
+			l_fetch.InitSQL(DatabaseName.basedb,l_strSql,false);
+			cds_MoveNode.Clear();
+			if(l_fetch.Fetch())
+			{
+				l_tbDelete = l_fetch.Data.Tables[0];
+				cds_MoveNode.SetData(l_fetch.Data.Tables[0]);
+				cds_MoveNode.Post();
+				cds_MoveNode.First();
+				while(!cds_MoveNode.Eof)
+				{
+					if(string.Compare(cds_MoveNode.type_level,l_strOrganLevelA,true)==0)
+					{
+						cds_MoveNode.type_level = l_strOrganLevelB;
+					}
+					else if(string.Compare(cds_MoveNode.type_level,l_strOrganLevelB,true)==0)
+					{
+						cds_MoveNode.type_level = l_strOrganLevelA;
+					}
+					else if(cds_MoveNode.type_level.StartsWith(l_strOrganLevelA+"."))
+					{
+						string l_strLevel = cds_MoveNode.type_level.Substring(l_strOrganLevelA.Length);
+						cds_MoveNode.type_level = l_strOrganLevelB + l_strLevel;
+					}
+					else if(cds_MoveNode.type_level.StartsWith(l_strOrganLevelB+"."))
+					{
+						string l_strLevel = cds_MoveNode.type_level.Substring(l_strOrganLevelB.Length);
+						cds_MoveNode.type_level = l_strOrganLevelA + l_strLevel;
+					}
+					cds_MoveNode.Next();
+				}
+				cds_MoveNode.Post();
+			}
+			if(cds_MoveNode.RowCount>1)
+			{
+				ServerProxy l_server = new ServerProxy(this);
+				if(l_server.SaveData("MoveNode",l_tbDelete,cds_MoveNode.DataTable))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+		
+		public void SetParentNode(TreeNode a_nodeParent,string a_strLevel)
+		{
+			RemoveNodes(a_nodeParent);
+			if(string.IsNullOrEmpty(a_strLevel))
+			{
+				FetchChildNodeData("___");
+			}
+			else
+			{
+				FetchChildNodeData(a_strLevel+".___");
+			}
+			DataTable l_tb = m_FetchDataList.Data.Tables[0];
+			BindChildNodes(a_nodeParent,l_tb);
+		}
+		
+		void RemoveNodes(TreeNode a_nodeParent)
+		{
+			a_nodeParent.Nodes.Clear();
+		}
+		#endregion

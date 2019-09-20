@@ -1,0 +1,5 @@
+				RepositoryItemCheckEdit l_ICE = new RepositoryItemCheckEdit();
+				gv_AllEquip.Columns[a_intIndex].ColumnEdit = l_ICE;
+				l_ICE.AutoHeight = false;
+				l_ICE.ValueChecked = "T";
+				l_ICE.ValueUnchecked = "F";

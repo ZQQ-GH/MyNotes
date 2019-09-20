@@ -1,0 +1,4 @@
+ if object_id('tempdb..#tb_return') is not null                                                    
+  begin                                                            
+     drop table  #tb_return                                  
+  end 

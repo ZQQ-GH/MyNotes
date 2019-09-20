@@ -1,0 +1,123 @@
+              
+CREATE proc P412_month_shop_produce_HFBL(@sysNo varchar(40),@AccountStockType varchar(40),@sysYear int ,@SysMonth int ,@ProductNO varchar(40),@productName varchar(100),    
+       @bShowProduct varchar(10),@FetchBatch int)              
+AS      
+/*    
+P412_month_shop_produce_HFBL @sysNo = '449',@AccountStockType = '',@sysYear = 2018 ,@SysMonth = 1 ,@ProductNO = '',@productName = '',    
+       @bShowProduct = 'F'    
+*/    
+begin     
+create table #Detail(sys_no varchar(40),account_stock_type varchar(40),account_stock_type_cn varchar(100),sys_year int,sys_month int,              
+    stock_type varchar(40),stock_type_cn varchar(40),output_type varchar(40),output_type_cn varchar(40),              
+    product_no varchar(40),product_name_cn varchar(100),finish_active_no varchar(40),finish_active_name_cn varchar(40),              
+    stock_no varchar(40),stock_name_cn varchar(40),remain_num float,unit_no varchar(40),unit_name_cn varchar(40),              
+    material_price float,material_amount float,work_price float,work_amount float,made_price float,made_amount float,               
+    total_amount float,check_guid varchar(40),shop_type varchar(40),row_num int)            
+    
+insert into #Detail( sys_no,account_stock_type,account_stock_type_cn,sys_year,sys_month,              
+    stock_type,stock_type_cn,output_type,output_type_cn,              
+    product_no,product_name_cn,finish_active_no,finish_active_name_cn,              
+    stock_no,stock_name_cn,remain_num,unit_no,unit_name_cn,              
+    material_price,material_amount,work_price,work_amount,made_price,made_amount,               
+    total_amount,check_guid,shop_type,row_num )    
+Select              
+    sys_no,account_stock_type,account_stock_type_cn,sys_year,sys_month,              
+    stock_type,stock_type_cn,output_type,output_type_cn,              
+    product_no,product_name_cn,finish_active_no,finish_active_name_cn,              
+    stock_no,stock_name_cn,remain_num,unit_no,unit_name_cn,              
+    material_price,material_amount,work_price,work_amount,made_price,made_amount,               
+    total_amount,check_guid,shop_type,row_num      
+  from(              
+    select   
+      main.sys_no,main.account_stock_type,ISNULL(ast.account_stock_type_cn,'') as account_stock_type_cn,sys_year,sys_month,              
+      stock_type,stock_type_cn,output_type,output_type_cn,              
+      product_no,product_name_cn,finish_active_no,finish_active_name_cn,              
+      stock_no,stock_name_cn,output_num as remain_num,unit_no,unit_name_cn,              
+      material_price,material_amount,work_price,work_amount,made_price,made_amount,            
+      material_amount+work_amount+made_amount as total_amount,        
+      '' as check_guid,'车间发出' as shop_type,  
+      (ROW_NUMBER() over (order by main.id)) as row_num              
+    from wsreport..T412_month_shop_output_HFBL main     
+    left join T412_account_stock_type_list ast on main.account_stock_type = ast.account_stock_type and main.sys_no = ast.sys_no     
+    where main.sys_no = @sysNo and sys_year = @sysYear and sys_month = @SysMonth     
+          and (@AccountStockType = '' or main.account_stock_type like '%' + @AccountStockType + '%')      
+          and (@productName = '' or product_name_cn like '%' + @productName + '%')       
+          and (@ProductNO = '' or product_no like '%' + @ProductNO + '%')       
+              
+    Union all                
+          
+    select main.sys_no,main.account_stock_type,ISNULL(ast.account_stock_type_cn,'') as account_stock_type_cn,sys_year,sys_month,            
+      stock_type,stock_type_cn,'' as output_type,'' as output_type_cn,            
+      product_no,product_name_cn,finish_active_no,finish_active_name_cn,            
+      stock_no,stock_name_cn,remain_num,unit_no,unit_name_cn,            
+      material_price,material_amount,work_price,work_amount,made_price,made_amount,            
+      material_amount+work_amount+made_amount as total_amount,        
+  '' as check_guid,'车间结存' as shop_type,  
+      (ROW_NUMBER() over (order by main.id)) as row_num           
+    from wsreport..T412_month_shop_remain_HFBL  main    
+    left join T412_account_stock_type_list ast on main.account_stock_type = ast.account_stock_type and main.sys_no = ast.sys_no     
+    where main.sys_no = @sysNo and sys_year = @sysYear and sys_month = @SysMonth     
+          and (@AccountStockType = '' or main.account_stock_type like '%' + @AccountStockType + '%')      
+          and (@productName = '' or product_name_cn like '%' + @productName + '%')       
+          and (@ProductNO = '' or product_no like '%' + @ProductNO + '%')              
+  ) main     
+      
+ declare @intRowCount int;--总行数  
+ declare @intBatchAmount int;--总批次  
+ declare @intStartNum int;--开始行数  
+ declare @intEndNum int;--结束行数  
+ declare @intBatchNum int;--一次取数的数量  
+ select @intBatchNum =500;  
+   
+ select @intRowCount = count(1) from (select * from #Detail)main;  
+ select @intBatchAmount =CEILING(CONVERT(float,@intRowCount)/CONVERT(float,@intBatchNum))-1;  
+   
+ select @intStartNum =@FetchBatch*@intBatchNum+1;  
+  if(@FetchBatch<@intBatchAmount)  
+   begin  
+     select @intEndNum =(@FetchBatch+1)*@intBatchNum;  
+   end  
+  else  
+   begin  
+     select @intEndNum =@intRowCount;  
+   end  
+  
+    
+    
+    
+  if(@bShowProduct = 'F')    
+  begin    
+    select * from(  select finish_active_name_cn,finish_active_no,stock_no,stock_name_cn ,account_stock_type,account_stock_type_cn,    
+             SUM(remain_num) as remain_num,    
+             case when SUM(remain_num) <> 0 then SUM(material_amount)/SUM(remain_num) else 0 end material_price,    
+             SUM(material_amount) as material_amount,    
+             case when SUM(remain_num) <> 0 then SUM(work_amount)/SUM(remain_num) else 0 end work_price,    
+             SUM(work_amount) as work_amount,    
+             case when SUM(remain_num) <> 0 then SUM(made_amount)/SUM(remain_num) else 0 end made_price,    
+             SUM(made_amount) as made_amount,  
+             (ROW_NUMBER() over (order by main.row_num)) as row_num     
+      from #Detail main  
+      group by finish_active_name_cn,finish_active_no,stock_no,stock_name_cn,account_stock_type,account_stock_type_cn,row_num) main   
+      where main.row_num>=@intStartNum and main.row_num<=@intEndNum  
+  end    
+  else    
+  begin    
+     select sys_no,account_stock_type,account_stock_type_cn,sys_year,sys_month,              
+        stock_type,stock_type_cn,output_type,output_type_cn,              
+        product_no,product_name_cn,finish_active_no,finish_active_name_cn,              
+        stock_no,stock_name_cn,remain_num,unit_no,unit_name_cn,              
+        material_price,material_amount,work_price,work_amount,made_price,made_amount,               
+        total_amount,check_guid,shop_type    
+    from #Detail  main  
+    where main.row_num>=@intStartNum and main.row_num<=@intEndNum  
+  end    
+  
+  --返回总批次  
+  select   
+   @intRowCount as 总行数  
+ , @intBatchAmount as 总批次  
+ , @intStartNum as 开始行数  
+ , @intEndNum as 结束行数  
+ , @intBatchNum as 次取数的数量  
+   
+  end 

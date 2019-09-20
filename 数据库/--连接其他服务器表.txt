@@ -1,0 +1,6 @@
+
+select * from 
+OPENDATASOURCE(
+         'SQLOLEDB',
+         'Data Source=202.101.103.251\dotnetdev;User ID=sa;Password=system'
+         ).wsbase201.dbo.T200_object_code 

@@ -1,0 +1,153 @@
+//导入说明
+		void Btn_ImportNotifyClick(object sender, EventArgs e)
+		{
+			int l_iShowFormX = Control.MousePosition.X;
+			int l_iShowFormY = Control.MousePosition.Y;
+			Controller.CallNotifyForm(l_iShowFormX,l_iShowFormY);
+		}
+
+
+	#region 引用导入说明
+		public void CallNotifyForm(int a_iShowFormX,int a_iShowFormY)
+		{
+			FormNotify l_frm = new FormNotify(this);
+			try
+			{
+				l_frm.Init();
+				// 无边框窗口，left/top 在单元格位置.
+				l_frm.Left = Screen.PrimaryScreen.WorkingArea.Width - l_frm.Width < a_iShowFormX ?
+					Screen.PrimaryScreen.WorkingArea.Width - l_frm.Width : a_iShowFormX;
+				l_frm.Top = Screen.PrimaryScreen.WorkingArea.Height - l_frm.Height < a_iShowFormY ?
+					Screen.PrimaryScreen.WorkingArea.Height - l_frm.Height : a_iShowFormY;
+				l_frm.ShowDialog();
+			}
+			finally
+			{
+				l_frm.Dispose();
+			}
+		}
+
+
+
+
+	//导入Excel
+		void Mi_ExcelInputClick(object sender, EventArgs e)
+		{
+			if(openFileDialog_ExcelInput.ShowDialog()==DialogResult.OK)
+			{
+				string l_strFilePath = openFileDialog_ExcelInput.FileName;
+				Controller.GetExcelData(l_strFilePath,Mi_ExcelInput.Text);
+			}
+		}
+
+
+ Excel导入
+		public void  GetExcelData(string a_strPath,string a_strCaption)
+		{
+			cds_ExcelInput.Clear();
+			if(ExcelImport(a_strPath))
+                        .......
+                        .......
+
+
+bool ExcelImport(string a_strPath)
+		{
+			cds_ExcelInput.Clear();
+			DataTable l_tb = cds_ExcelInput.DataTable.Clone();
+			string l_strConn = "Provider=Microsoft.Jet.OLEDB.4.0;Data Source= '"+a_strPath+"';Extended Properties='Excel 8.0;HDR=NO;IMEX=1';";
+			OleDbConnection conn = new OleDbConnection(l_strConn);
+			string l_strExcel = "select * from ["+Const.ct_strTableName+"$]";
+			OleDbCommand cmd = new OleDbCommand(l_strExcel, conn);
+			try
+			{
+				conn.Open();
+				OleDbDataReader reader = cmd.ExecuteReader();
+				int l_intCount = 1;
+				while (reader.Read())
+				{
+					string l_strProductName = reader[0].ToString().Trim();
+					string l_strProductDesc = reader[1].ToString().Trim();
+					string l_strInputNum = reader[2].ToString().Trim();
+					string l_strGoodsPlace= reader[3].ToString().Trim();
+					string l_strQualityState= reader[4].ToString().Trim();
+					string l_strSupplyPrice= reader[5].ToString().Trim();
+					string l_strSupplyName= reader[6].ToString().Trim();
+					string l_strInputNote= reader[7].ToString().Trim();
+					if(string.Compare(l_strProductName,"") == 0 &&string.Compare(l_strInputNum,"") ==0 &&
+					   string.Compare(l_strProductDesc,"") ==0 && string.Compare(l_strGoodsPlace,"") ==0 &&
+					   string.Compare(l_strQualityState,"") ==0 &&string.Compare(l_strSupplyPrice,"") ==0 &&
+					   string.Compare(l_strSupplyName,"") ==0 && l_strInputNote.IsNullOrEmpty())
+					{
+						break;
+					}
+					//在第一行判断导入的表与DGB表的字段是否相对应
+					if(l_intCount == 1)
+					{
+						l_intCount ++;
+						if(string.Compare(l_strProductName,Const.ct_strProductName) != 0 ||
+						   string.Compare(l_strProductDesc,Const.ct_strProductDesc) !=0  ||
+						   string.Compare(l_strInputNum,Const.ct_strInputNum) != 0  ||
+						   string.Compare(l_strGoodsPlace,Const.ct_strGoodsPlace) != 0 ||
+						   string.Compare(l_strQualityState,Const.ct_strQuslityState) != 0||
+						   string.Compare(l_strSupplyPrice,Const.ct_strSupplyPrice) != 0 ||
+						   string.Compare(l_strSupplyName,Const.ct_strSupplyName) != 0||
+						   string.Compare(l_strInputNote,Const.ct_strInputNote) != 0)
+						{
+							MsgBox.Show(Const.ct_MsgParseFieldContent);
+							conn.Close();
+							return false;
+						}
+					}
+					else
+					{
+						cds_ExcelInput.Append();
+						cds_ExcelInput.SetDefaultRowValue();
+						cds_ExcelInput.product_name_cn = l_strProductName;
+						cds_ExcelInput.product_desc = l_strProductDesc;
+						cds_ExcelInput.input_num = 0;
+						double l_dValue = 0;
+						if (double.TryParse(l_strInputNum, out l_dValue))
+						{
+							cds_ExcelInput.input_num = l_dValue;
+						}
+						cds_ExcelInput.goods_place = l_strGoodsPlace;
+						cds_ExcelInput.quality_state = l_strQualityState;
+						cds_ExcelInput.supply_price = 0;
+						if (double.TryParse(l_strSupplyPrice, out l_dValue))
+						{
+							cds_ExcelInput.supply_price = l_dValue;
+						}
+						cds_ExcelInput.supply_name_cn = l_strSupplyName;
+						cds_ExcelInput.input_note = l_strInputNote;
+						cds_ExcelInput.product_no = "";
+						cds_ExcelInput.supply_no = "";
+						cds_ExcelInput.Post();
+						
+						l_intCount++;
+					}
+				}
+			}
+			catch(Exception e)
+			{
+				if (conn.State == ConnectionState.Open)
+				{
+					MsgBox.Show(string.Format(Const.ct_MsgTableIsNotExists,Const.ct_strTableName));
+					return false;
+				}
+				else
+				{
+					MsgBox.Show(e.ToString());
+					return false;
+				}
+			}
+			finally
+			{
+				conn.Close();
+			}
+			return true;
+		}
+
+
+
+
+

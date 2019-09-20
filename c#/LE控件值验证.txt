@@ -1,0 +1,21 @@
+void LE_sale_exchange_rateEditValidating(object sender, System.ComponentModel.CancelEventArgs e)
+		{
+			DBEdit l_de = sender as DBEdit;//也可以直接根据控件名字取其值
+			string l_strValue = l_de.EditValue.ToString();
+			double l_dValue = 0;
+			if (!double.TryParse(l_strValue, out l_dValue))
+			{
+				MsgBox.Warn(Const.ct_MsgFloatNumInvalidValue);   //输入格式不正确!
+				bindingCds_Money.Post();
+				l_de.Focus();
+				return;
+			}
+
+			if (l_dValue < 0)
+			{
+				MsgBox.Warn(Const.ct_MsgExchangeRateLessThanZero);
+				bindingCds_Money.Post();
+				l_de.Focus();
+				return;
+			}
+		}

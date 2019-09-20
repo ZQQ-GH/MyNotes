@@ -1,0 +1,28 @@
+
+单元格合并：
+void BGV_MasterCellMerge(object sender, DevExpress.XtraGrid.Views.Grid.CellMergeEventArgs e)
+		{
+			e.Merge = false;
+			string l_FieldName =e.Column.FieldName;
+			string l_CellValue1=BGV_Master.GetRowCellValue(e.RowHandle1,"product_no").ToString();
+			string l_CellValue2=BGV_Master.GetRowCellValue(e.RowHandle2,"product_no").ToString();
+			if (l_FieldName=="product_no")
+			{
+				if (e.CellValue1.ToString()==e.CellValue2.ToString())
+				{
+					e.Merge = true;
+				}
+			}
+			
+			if(l_FieldName=="product_name_cn"||l_FieldName=="order_num"||l_FieldName=="ug_product_name_cn"||
+			    l_FieldName=="destine_num"||l_FieldName=="delivery_num"|| l_FieldName=="remain_num"||
+			    l_FieldName=="first_delivery_date"||l_FieldName=="last_delivery_date"|| 
+			    l_FieldName=="ug_remain_num"||l_FieldName=="ug_plan_num")
+			{
+				if (e.CellValue1.ToString()==e.CellValue2.ToString()&&l_CellValue1==l_CellValue2)
+				{
+					e.Merge = true;
+				}
+			}
+			e.Handled = true;
+		}

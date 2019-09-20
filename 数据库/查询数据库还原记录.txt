@@ -1,0 +1,15 @@
+--查询SQLServer数据库还原记录
+SELECT bus.server_name as 'server',rh.restore_date,bus.database_name as 'database',
+CAST(bus.first_lsn AS VARCHAR(50)) as LSN_First,
+CAST(bus.last_lsn AS VARCHAR(50)) as LSN_Last,
+CASE rh.[restore_type]
+ WHEN 'D' THEN 'Database'
+ WHEN 'F' THEN 'File'
+ WHEN 'G' THEN 'Filegroup'
+ WHEN 'I' THEN 'Differential'
+ WHEN 'L' THEN 'Log'
+ WHEN 'V' THEN 'Verifyonly'
+ END AS restore_type
+FROM msdb.dbo.restorehistory rh
+LEFT JOIN msdb.dbo.backupset bus ON rh.backup_set_id=bus.backup_set_id
+order by restore_date desc

@@ -1,0 +1,126 @@
+/*                                      
+                                      
+物料需求计算：取 生产需求查询功能中的数据作为成品需求。    
+按照提取交期 提取生产计划中订单交期范围内的数据                                 
+                                      
+*/                                      
+                                      
+CREATE Procedure PA03_GetUnFinishSaleDemand_F20390C                      
+(@strSysNo varchar(20),@dtDeliveryDate datetime)                                                    
+as                                                    
+begin                                                 
+                                                                        
+BEGIN TRAN                                                                                   
+  BEGIN TRY                                           
+  
+                                                                 
+Create table #tbMain                       
+(sys_no varchar(20),sale_order_guid varchar(40),input_date datetime,                                                    
+ sale_order_no varchar(40),customer_no varchar(40),customer_order_no varchar(40),customer_goods_no varchar(40),                                                    
+ product_no varchar(80),order_num float,delivery_num float,undelivery_num float,unit_no varchar(40),                              
+ delivery_date datetime,sale_worker_no varchar(40),sale_dept_no varchar(40),detail_note varchar(500),                              
+ edit_user_no varchar(40),order_sn int identity(1,1))                                 
+  
+--非修理包产线  
+insert into #tbMain                      
+(sys_no,sale_order_guid,input_date,sale_order_no,customer_no,customer_order_no,customer_goods_no,                                                    
+ product_no,order_num,delivery_num,undelivery_num,unit_no,delivery_date,                              
+ sale_worker_no,sale_dept_no,detail_note,edit_user_no)                                                    
+select sod.sys_no,sod.sale_order_guid,sod.input_date,              
+       sod.sale_order_no,sod.customer_no,                                                    
+       sod.customer_order_no,sod.customer_goods_no,sod.product_no,                                           
+       sod.order_num,sod.delivery_num,sod.order_num-sod.delivery_num as undelivery_num,              
+       sod.unit_no,sod.delivery_date,                                                    
+       sod.worker_no,sod.dept_no,sod.detail_note,            
+       IsNull(som.edit_user_no,'') as edit_user_no                                                     
+from T201_sale_order_detail sod        
+Left join T201_sale_order_master som on som.sys_no = sod.sys_no and som.sale_order_no = sod.sale_order_no    
+left join T200_repaire_kit_product rkp on rkp.product_no=sod.product_no  
+Left Join(select ppp.sys_no,ppp.product_no,                    
+             max(ppp.product_produce_no) as product_produce_no                                                                                              
+           from TA05_product_produce_product ppp                                                                           
+           group by ppp.sys_no,ppp.product_no                                                                            
+           ) ppp On ppp.sys_no = sod.sys_no and ppp.product_no = sod.product_no        
+where sod.sys_no = @strSysNo                                      
+  and sod.state_type = 'run'                                   
+  and sod.reaudit_tag = 'T'      
+  and sod.self_purchase='self_made'   
+  and rkp.product_no is null                                    
+  and sod.order_num > sod.delivery_num                          
+  and sod.delivery_date<=@dtDeliveryDate                              
+  order by sod.delivery_date,sod.sale_order_no,sod.order_sn    
+    
+--修理包产线                                                                                      
+insert into #tbMain                      
+(sys_no,sale_order_guid,input_date,sale_order_no,customer_no,customer_order_no,customer_goods_no,                                                    
+ product_no,order_num,delivery_num,undelivery_num,unit_no,delivery_date,                              
+ sale_worker_no,sale_dept_no,detail_note,edit_user_no)                                                    
+select sod.sys_no,sod.sale_order_guid,sod.input_date,              
+       sod.sale_order_no,sod.customer_no,                                                    
+       sod.customer_order_no,sod.customer_goods_no,sor.product_no,                                           
+       sod.order_num,sod.delivery_num,sod.order_num-sod.delivery_num as undelivery_num,              
+       sod.unit_no,sod.delivery_date,                                                    
+       sod.worker_no,sod.dept_no,sod.detail_note,            
+       IsNull(som.edit_user_no,'') as edit_user_no                                                     
+from T201_sale_order_detail sod        
+inner join T200_repaire_kit_product rkp on rkp.product_no=sod.product_no  
+inner join T201_sale_order_reaudit sor on sor.sale_order_guid=sod.sale_order_guid                                                    
+Left join T201_sale_order_master som on som.sys_no = sod.sys_no and som.sale_order_no = sod.sale_order_no                 
+where sod.sys_no = @strSysNo                                      
+  and sod.state_type = 'run'                                   
+  and sor.reaudit_tag = 'T'      
+  and sor.self_purchase='self_made'                                    
+  and sod.order_num > sod.delivery_num                          
+  and sod.delivery_date<=@dtDeliveryDate                              
+  order by sod.delivery_date,sod.sale_order_no,sod.order_sn                                  
+                       
+                       
+ -- 删除原有数据                                      
+Delete From TA03_MRP_sale_order_detail where calc_type=''                       
+                                       
+-- 将查询结果插入数据库表                                                    
+insert into TA03_MRP_sale_order_detail                                      
+  (sys_no,sale_order_guid,input_date,sale_order_no,customer_no,customer_order_no,customer_goods_no,                                                    
+   product_no,order_num,delivery_num,undelivery_num,can_use_stock_num,this_use_stock_num,net_need_num,                                  
+   unit_no,delivery_date,sale_worker_no,sale_dept_no,detail_note,edit_user_no,order_sn,calc_type)                    
+select sys_no,sale_order_guid,input_date,sale_order_no,customer_no,customer_order_no,customer_goods_no,                                                    
+       product_no,order_num,delivery_num,undelivery_num,0,0,0,                                  
+       unit_no,delivery_date,sale_worker_no,sale_dept_no,detail_note,edit_user_no,order_sn,''                                                   
+from #tbMain                               
+                                          
+                                                   
+-- 更新提取时间                                      
+if(not exists(select top 1 1 from TA03_MRP_calc_master where calc_type=''))                                                    
+begin                                                    
+    insert into TA03_MRP_calc_master                              
+      (sys_no, fetch_sale_order_date, fetch_remain_date,                                       
+       fetch_supply_order_date, calc_material_request_date,calc_type,fetch_so_delivery_date)                               
+    select @strSysNo as sys_no,                      
+           getdate()as fetch_sale_order_date,                                        
+           '1900-1-1' as fetch_remain_date,                                        
+           '1900-1-1' as fetch_supply_order_date,                                        
+           '1900-1-1' as calc_material_request_date,                      
+           '' as calc_type,                  
+           @dtDeliveryDate as fetch_so_delivery_date                                                      
+end                                     
+else                                                    
+begin                                                    
+  update TA03_MRP_calc_master set fetch_sale_order_date = getdate(),                
+       fetch_so_delivery_date=@dtDeliveryDate where calc_type=''                               
+end                                                    
+                                                    
+  End Try                                                      
+                                                    
+  BEGIN CATCH                                                                                       
+    begin                                                                          
+      select 'F' as is_succeed, 'LINE:'+cast(ERROR_LINE() as varchar(10))+ ',ERROR:'+ERROR_MESSAGE() as error_msg                                                                            
+      rollback tran                                                                                      
+      return                                                                            
+    end                                                                                   
+  END CATCH                                                                  
+                                                                             
+  COMMIT TRAN                                                                       
+                                                         
+  select 'T' as is_succeed                                            
+                                      
+END 

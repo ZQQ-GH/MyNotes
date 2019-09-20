@@ -1,0 +1,91 @@
+
+
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.OleDb;
+using System.IO;
+using System.Windows.Forms;
+
+
+//新增
+		void ToolStripMenuItem1Click(object sender, EventArgs e)
+		{
+			Controller.SubmitOneContend(openFileDialog_File);
+		}
+
+
+public bool SubmitOneContend(System.Windows.Forms.OpenFileDialog sender)
+		{
+			sender.FileName = "";
+			sender.Filter = "所有文件(*.*)|*.*";
+			if(sender.ShowDialog() == DialogResult.OK)
+			{
+				AddOneRecord();
+				cds_FileList.Last();
+				cds_FileList.file_no = Path.GetFileName(sender.FileName);
+				cds_FileList.file_name_cn = Path.GetFileName(sender.FileName);
+				cds_FileList.file_name_en = Path.GetFileName(sender.FileName);
+				cds_FileList.file_type = Path.GetExtension(sender.FileName);
+				cds_FileList.edit_date = DateTimeExtension.GetServerTime();
+				byte[] l_arrImg = WBF.Utils.FileHandler.GetFileBytes(sender.FileName);
+				cds_FileList.file_content = l_arrImg;
+				cds_FileList.file_size = l_arrImg.Length;
+				cds_FileList.edit_user_no = SysParams.Instance.WorkerNo;
+				cds_FileList.edit_date = DateTimeExtension.GetServerTime(); //需要使用服务器时间
+				cds_FileList.Post();
+				return true;
+			}
+			return false;
+		}
+
+
+
+
+
+
+	//查看文件
+		public void DisplayFile(int a_intRowIndex)
+		{
+			cds_FileList.RowIndex = a_intRowIndex;
+			if (cds_FileList.file_size<5) return;
+			string l_strFileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
+			if (!Directory.Exists(l_strFileName))
+			{
+				Directory.CreateDirectory(l_strFileName);
+			}
+			l_strFileName = Path.Combine(l_strFileName, cds_FileList.file_name_cn);
+			byte[] l_bts = (byte[])cds_FileList.file_content;
+			if (l_bts.Length > 0)
+			{
+				WBF.Utils.FileHandler.WriteAllBytes(l_strFileName,cds_FileList.file_content);
+				WBF.Utils.FileHandler.ViewFile(l_strFileName);
+			}
+		}
+
+
+
+
+
+	public void DownloadFile(int l_intRowIndex)
+		{
+			cds_FileList.RowIndex = l_intRowIndex;
+			if (cds_FileList.file_size<5) return;
+			string l_strFileName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
+			if (!Directory.Exists(l_strFileName))
+			{
+				Directory.CreateDirectory(l_strFileName);
+			}
+			SaveFileDialog l_dlg = new SaveFileDialog();
+			l_dlg.FileName = cds_FileList.file_name_cn;
+			if (l_dlg.ShowDialog()== DialogResult.OK)
+			{
+				byte[] l_bts = (byte[])cds_FileList.file_content;
+				if (l_bts.Length > 0)
+				{
+					WBF.Utils.FileHandler.WriteAllBytes(l_dlg.FileName, cds_FileList.file_content);
+					MsgBox.Show("下载成功!");
+				}
+			}
+		}

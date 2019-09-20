@@ -1,0 +1,3 @@
+			DataView l_dv = cds_CraftDetailView.DataView;
+			l_dv.Sort = "segment_sn,craft_sequence asc";
+cds_CraftDetailView.SetData(l_dv.ToTable());

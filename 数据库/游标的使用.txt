@@ -1,0 +1,29 @@
+declare @aa table(a float ,b float , c float )
+insert into @aa
+select 1.1,1.2,1.3
+union all
+select 2.1,2.2,2.3
+union all 
+select 3.1,3.2,3.3
+union all
+select 4.1,4.2,4.3
+select * from @aa
+
+declare @a float, @b float, @c float
+
+
+declare aa_cursor cursor for select * from @aa
+
+open aa_cursor
+fetch next from aa_cursor into @a,@b,@c
+while @@FETCH_STATUS=0
+begin
+   update @aa set b =b+@c where current of aa_cursor
+   --ªÚ’ﬂupdate @aa set b =b+@c where @a =a
+   fetch next from aa_cursor into @a,@b,@c
+end
+
+close aa_cursor
+
+deallocate aa_cursor
+select * from @aa

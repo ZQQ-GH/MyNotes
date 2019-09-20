@@ -1,0 +1,12 @@
+
+税率后面加%
+	void GV_DetailCustomDrawCell(object sender, RowCellCustomDrawEventArgs e)
+		{
+			if(e.Column.FieldName.Equals("sale_tax_rate"))
+			{
+				if(!e.CellValue.ToString().Equals("0"))
+				{
+					e.DisplayText=e.CellValue.ToString()+"%";
+				}
+			}
+		}

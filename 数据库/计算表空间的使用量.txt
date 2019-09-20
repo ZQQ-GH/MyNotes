@@ -1,0 +1,34 @@
+set nocount on
+declare @db varchar(20)
+set @db = db_name()
+dbcc updateusage(@db) with no_infomsgs
+
+
+declare @_tblspace table
+(
+数据表名称 varchar(255) null,
+记录笔数 int null,
+保留空间 varchar(20) null,
+数据使用空间 varchar(20) null,
+索引使用空间 varchar(20) null,
+未使用空间 varchar(20) null
+)
+declare @tblname varchar(255)
+declare curtbls cursor for
+select table_name from information_schema.tables
+where table_type = 'base table'
+open curtbls
+Fetch next from curtbls into @tblname
+while @@fetch_status = 0
+begin
+	insert @_tblspace exec sp_spaceused @tblname
+	fetch next from curtbls into @tblname
+end
+close curtbls
+deallocate curtbls
+
+select * from @_tblspace 
+order by convert(int,left(保留空间,len(保留空间)-2)) desc
+
+select 18576.00/1024.00/13.00*365
+

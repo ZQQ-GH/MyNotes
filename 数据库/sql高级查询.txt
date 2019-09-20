@@ -1,0 +1,17 @@
+
+
+---取用到某表的所有视图和存储过程
+select distinct sb.name
+from sysdepends sd
+inner join sysobjects sb on sb.id=sd.id
+inner join sysobjects sb1 on sb1.id=sd.depid
+where sb1.name='unit_code'
+
+
+查询所有包含某个字符的存储过程
+select v.name , v.create_date--, sq.definition
+from sys.procedures v
+inner join sys.sql_modules  sq on sq.object_id = v.object_id
+where v.name not like 'sp%'
+  and (  sq.definition like '%dbo.F100_GetIntSysParValue(%,''supply_tax_rate''%'
+  or   sq.definition like '%dbo.F100_GetIntSysParValue(%,''tax_rate''%')

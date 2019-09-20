@@ -1,0 +1,2 @@
+ cust_actach_name_list = isnull((select stuff((select ','+file_name from T612_project_docs doc 
+                                       where doc.project_guid=cid.inquiry_guid for xml path('')),1,1,'')),'')       

@@ -1,0 +1,3 @@
+ checkpoint
+ dbcc freeproccache
+ dbcc dropcleanbuffers

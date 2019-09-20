@@ -1,0 +1,7 @@
+
+//判断表是否不不存在
+IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='T201_accredit_money_audit_level' and xtype='U')
+
+
+//查找出所有的列
+Select * From syscolumns Where id=object_id('V904_product_produce_line')
