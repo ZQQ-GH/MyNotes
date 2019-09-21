@@ -1,0 +1,8 @@
+ÔÚhttp://tool.chinaz.com/dns 
+²éÑ¯assets-cdn.github.com
+    github.global.ssl.fastly.net
+
+
+C->windows->system32->driver->etc->hosts,
+C:\Windows\System32\drivers\etc
+ipconfig /flushdns
