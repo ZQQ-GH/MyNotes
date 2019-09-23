@@ -1,0 +1,25 @@
+下载 msysgit.github.io
+安装时： use git from git bash only
+配置path ：...\..\Git\bin
+
+生成密钥：
+ssh-keygen -t rsa -C 694246049@qq.com
+直接回车两次
+测试是否联通：
+ssh -T git@github.com
+
+
+git config --global user.name "ZQQ-GH"
+git config --global user.EMAIL "694246049@QQ.COM"
+
+
+git init 
+git remote add origin .........
+
+git add .
+git commit -m "123123"
+git push -u origin master
+
+git push origin master 
+git pull
+git branch --set-upstream-to=origin/master  master
